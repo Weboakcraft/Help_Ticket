@@ -894,7 +894,9 @@ table.pdft tr:nth-child(even) td{background:#FBF8F3}
     <div class="field">
       <label class="lbl" for="sTeam"><span class="lbl-en">Team members — one name per line</span></label>
       <textarea class="ctrl" id="sTeam" style="min-height:200px"></textarea>
-      <div class="opt-s">Ek hi list. Yahan naam badalne par "Ticket raised by" aur "Problem assigned to" — dono dropdown apne aap update ho jayenge.</div>
+      <div class="opt-s">Ek hi list — "Ticket raised by" aur "Problem assigned to", dono dropdown isi se bharte hain.<br>
+        <b>Sabke liye naam badalne ke liye</b> GitHub par <code>index.html</code> me <code>DEF_TEAM</code> list edit karein — refresh karte hi har device par nayi list aa jayegi.
+        Yahan kiya gaya badlav sirf isi device ka hai, aur master list badalne par hat jayega.</div>
     </div>
 
     <div class="sec-t">Data</div>
@@ -1354,10 +1356,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     signerRole: 'Proprietor, M/s Oakcraft'
   };
 
-  /* ===== TEAM = SINGLE SOURCE OF TRUTH =====
-     Sirf yahi ek list hai. "Ticket raised by" aur "Problem assigned to" - dono dropdown
-     isi list se bharte hain. Naam add/remove karne ke liye Settings > People list
-     (ek hi box) use karein, ya neeche is array ko edit karein. */
+  /* ============ TEAM = SINGLE MASTER LIST ============
+     >>> NAAM ADD / REMOVE SIRF YAHAN KAREIN <<<
+     Ye ek hi list "Ticket raised by" aur "Problem assigned to" dono dropdown me jaati hai.
+     Is array ko badal kar GitHub par commit karte hi HAR device par (sabhi staff ke
+     browser me) list apne aap update ho jaayegi - unhe kuch karne ki zaroorat nahi,
+     bas page refresh. Settings wala box sirf us device ke liye temporary badlav hai. */
   const DEF_TEAM = ['ANKUSH GOSWAMI','ARUN MOURYA','PAWAN KUMAR','RASHI JAIN','UJALA RAJPUT',
     'AMIRA SAIKH','NITI KUMARI','RAHUL STORE','DEEPAK','SURAJ','PINKI KUMARI','SAKSHI LAMBA',
     'ADITI KHANNA','ANJALI','MAYANK MITTAL','HITESH','HARSH'];
@@ -1380,7 +1384,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     url: '', sheet: '', cc: '91', num: '', prep: '', stamp: false, hi: false, ver: 3,
     team: DEF_TEAM.slice()
   }, ls.get(K.cfg, {}));
-  /* purani do-list wali config (people + assign) ko ek hi team list me migrate karo */
+  const TEAM_SIG = DEF_TEAM.join('|');
+  /* Purani do-list wali config (people + assign) ko ek hi team list me migrate karo,
+     aur MASTER LIST SYNC lagao: jab bhi upar wali DEF_TEAM badlegi, har device par
+     list apne aap wahi ho jayegi (bas page refresh). */
   function normCfg(c) {
     let t = Array.isArray(c.team) ? c.team : null;
     if (!t || !t.length) {
@@ -1388,6 +1395,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                                Array.isArray(c.assign) ? c.assign : []);
       t = merged.length ? merged : DEF_TEAM.slice();
     }
+    if (c.teamSig !== TEAM_SIG) { t = DEF_TEAM.slice(); c.teamSig = TEAM_SIG; }
     c.team = Array.from(new Set(t.map(v => String(v).trim()).filter(Boolean)));
     delete c.people; delete c.assign;
     c.ver = 3;

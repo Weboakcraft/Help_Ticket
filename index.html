@@ -892,12 +892,9 @@ table.pdft tr:nth-child(even) td{background:#FBF8F3}
 
     <div class="sec-t">People list</div>
     <div class="field">
-      <label class="lbl" for="sPeople"><span class="lbl-en">Ticket raised by — one name per line</span></label>
-      <textarea class="ctrl" id="sPeople" style="min-height:130px"></textarea>
-    </div>
-    <div class="field">
-      <label class="lbl" for="sAssign"><span class="lbl-en">Problem assigned to — one name per line</span></label>
-      <textarea class="ctrl" id="sAssign" style="min-height:130px"></textarea>
+      <label class="lbl" for="sTeam"><span class="lbl-en">Team members — one name per line</span></label>
+      <textarea class="ctrl" id="sTeam" style="min-height:200px"></textarea>
+      <div class="opt-s">Ek hi list. Yahan naam badalne par "Ticket raised by" aur "Problem assigned to" — dono dropdown apne aap update ho jayenge.</div>
     </div>
 
     <div class="sec-t">Data</div>
@@ -1357,10 +1354,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     signerRole: 'Proprietor, M/s Oakcraft'
   };
 
-  const DEF_PEOPLE = ['ANKUSH GOSWAMI','ARUN MOURYA','MD GULAM','NEETU TRIPATHI','UJALA RAJPUT',
-    'AMIRA SAIKH','NITI KUMARI','RAHUL STORE','DEEPAK','SURAJ','PINKI KUMARI','HEENA KASHYAP'];
-  const DEF_ASSIGN = ['ANKUSH GOSWAMI','ARUN MOURYA','MD GULAM','NEETU TRIPAHI','PINKI KUMARI',
-    'VISHU MITTAL','AMIRA SAIKH','UJALA RAJPUT','NITI KUMARI','RAHUL','DEEPAK','SURAJ','HEENA KASHYAP'];
+  /* ===== TEAM = SINGLE SOURCE OF TRUTH =====
+     Sirf yahi ek list hai. "Ticket raised by" aur "Problem assigned to" - dono dropdown
+     isi list se bharte hain. Naam add/remove karne ke liye Settings > People list
+     (ek hi box) use karein, ya neeche is array ko edit karein. */
+  const DEF_TEAM = ['ANKUSH GOSWAMI','ARUN MOURYA','PAWAN KUMAR','RASHI JAIN','UJALA RAJPUT',
+    'AMIRA SAIKH','NITI KUMARI','RAHUL STORE','DEEPAK','SURAJ','PINKI KUMARI','SAKSHI LAMBA',
+    'ADITI KHANNA','ANJALI','MAYANK MITTAL','HITESH','HARSH'];
   const DEPTS = ['— none —','IT / Systems','Production','Store / Inventory','Dispatch & Logistics',
     'Accounts','Sales & Marketing','Purchase','HR / Admin','Quality','Maintenance','Other'];
 
@@ -1377,13 +1377,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   let TICKETS = ls.get(K.data, []);
   let QUEUE = ls.get(K.queue, []);
   let CFG = Object.assign({
-    url: '', sheet: '', cc: '91', num: '', prep: '', stamp: false, hi: false, ver: 2,
-    people: DEF_PEOPLE.slice(), assign: DEF_ASSIGN.slice()
+    url: '', sheet: '', cc: '91', num: '', prep: '', stamp: false, hi: false, ver: 3,
+    team: DEF_TEAM.slice()
   }, ls.get(K.cfg, {}));
-  if (CFG.ver !== 2) { CFG.stamp = false; CFG.ver = 2; }
+  /* purani do-list wali config (people + assign) ko ek hi team list me migrate karo */
+  function normCfg(c) {
+    let t = Array.isArray(c.team) ? c.team : null;
+    if (!t || !t.length) {
+      const merged = [].concat(Array.isArray(c.people) ? c.people : [],
+                               Array.isArray(c.assign) ? c.assign : []);
+      t = merged.length ? merged : DEF_TEAM.slice();
+    }
+    c.team = Array.from(new Set(t.map(v => String(v).trim()).filter(Boolean)));
+    delete c.people; delete c.assign;
+    c.ver = 3;
+    return c;
+  }
+  CFG = normCfg(CFG);
 
   const save = () => ls.set(K.data, TICKETS);
   const saveCfg = () => ls.set(K.cfg, CFG);
+  saveCfg(); /* migrated config ko turant persist kar do */
   const saveQ = () => ls.set(K.queue, QUEUE);
 
   /* ---------------- small utils ---------------- */
@@ -1441,8 +1455,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     el.innerHTML = '<option value="">' + esc(ph) + '</option>' + list.map(v => '<option>' + esc(v) + '</option>').join('');
   }
   function refreshSelects() {
-    fillSel($('#fBy'), CFG.people, 'Select name…');
-    fillSel($('#fTo'), CFG.assign, 'Select name…');
+    fillSel($('#fBy'), CFG.team, 'Select name…');
+    fillSel($('#fTo'), CFG.team, 'Select name…');
     $('#fCat').innerHTML = DEPTS.map(v => '<option' + (v.charAt(0) === '—' ? ' value=""' : '') + '>' + esc(v) + '</option>').join('');
   }
 
@@ -2169,7 +2183,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       $('#sUrl').value = CFG.url; $('#sSheet').value = CFG.sheet;
       $('#sCc').value = CFG.cc; $('#sNo').value = CFG.num; $('#sPrep').value = CFG.prep;
       $('#sStamp').checked = !!CFG.stamp; $('#sHiPdf').checked = !!CFG.hi;
-      $('#sPeople').value = CFG.people.join('\n'); $('#sAssign').value = CFG.assign.join('\n');
+      $('#sTeam').value = CFG.team.join('\n');
       $('#pendN').textContent = QUEUE.length ? '(' + QUEUE.length + ')' : '';
       $('#drawer').classList.add('on'); $('#setScrim').classList.add('on');
     };
@@ -2181,10 +2195,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       CFG.url = $('#sUrl').value.trim(); CFG.sheet = $('#sSheet').value.trim();
       CFG.cc = $('#sCc').value.replace(/\D/g, '') || '91'; CFG.num = $('#sNo').value.replace(/\D/g, '');
       CFG.prep = $('#sPrep').value.trim(); CFG.stamp = $('#sStamp').checked; CFG.hi = $('#sHiPdf').checked;
-      const p = $('#sPeople').value.split('\n').map(s => s.trim()).filter(Boolean);
-      const a = $('#sAssign').value.split('\n').map(s => s.trim()).filter(Boolean);
-      CFG.people = p.length ? p : DEF_PEOPLE.slice();
-      CFG.assign = a.length ? a : DEF_ASSIGN.slice();
+      const t = $('#sTeam').value.split('\n').map(s => s.trim()).filter(Boolean);
+      CFG.team = t.length ? Array.from(new Set(t)) : DEF_TEAM.slice();
       saveCfg(); refreshSelects(); closeSet(); toast('Settings saved', 'ok');
       if (CFG.url) flush();
     });
@@ -2213,7 +2225,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           const d = JSON.parse(rd.result);
           if (!Array.isArray(d.tickets)) throw 0;
           if (!confirm('Restore ' + d.tickets.length + ' tickets? Current data will be replaced.')) return;
-          TICKETS = d.tickets; if (d.cfg) CFG = Object.assign(CFG, d.cfg);
+          TICKETS = d.tickets; if (d.cfg) CFG = normCfg(Object.assign(CFG, d.cfg));
           save(); saveCfg(); refreshSelects(); renderAll(); closeSet(); toast('Restored ' + TICKETS.length + ' tickets', 'ok');
         } catch (err) { toast('That file is not a valid backup', 'bad'); }
       };
